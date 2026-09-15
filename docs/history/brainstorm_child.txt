@@ -1,0 +1,2125 @@
+from pathlib import Path
+import zipfile, textwrap, os, json, re
+
+base = Path("/mnt/data/digital_work_execution_ke_r1_r9")
+base.mkdir(parents=True, exist_ok=True)
+
+docs = {}
+
+docs["R1_PRD.md"] = r"""# R1 — Product Requirements Document
+## Digital Field-Work Execution & Control Platform — Kenya
+**Version:** 0.1  
+**Status:** Requirements baseline for hostile review  
+**Market:** Kenya; architecture intended to remain Africa-compatible  
+**Scope:** One platform core, three domain profiles: healthcare field work, marketing/sales field work, debt collection/recovery
+
+## 1. Product definition
+
+The product is a field-work execution and control platform. It converts operational work into controlled, auditable field execution:
+
+**Work Item → Assignment → Authority/Policy → Context → Execution → Evidence → Outcome → Review → Next Action**
+
+The “work card” is the worker-facing presentation of a work item. It is not the core domain object.
+
+The platform is not an EMR/EHR, CRM, loan-management system, accounting package, payment processor, route-optimisation product, HR system, or employee-surveillance product.
+
+## 2. Problem
+
+Kenyan field operations commonly depend on fragmented combinations of paper forms, spreadsheets, messaging, calls, generic CRMs, existing SFA tools and disconnected back-office systems. The operational problem is not merely digitising a form. It is maintaining trustworthy control over what was assigned, what the worker was authorised to do, what actually happened, what evidence exists, what outcome resulted, and what happens next.
+
+The product must therefore optimise for operational integrity rather than form completion.
+
+## 3. Target domains
+
+### Healthcare field work
+Examples: community/outreach visits, facility support, equipment/service interventions, inspections and other non-clinical or bounded field activities.
+
+Boundary: do not replace the authoritative patient record or make clinical decisions in the core product.
+
+Kenya’s Digital Health Act and health-information rules materially raise the compliance and interoperability burden for health data. Health deployments must be treated as regulated integrations, not ordinary SaaS tenants.
+
+### Marketing/sales field work
+Examples: outlet visits, merchandising, order capture, lead follow-up, promotion execution and market observations.
+
+This is the lowest regulatory-risk domain but also the most commercially crowded. The product must not compete merely on GPS, offline forms, order capture or dashboards.
+
+### Debt collection/recovery
+Examples: authorised customer contact, visit, repayment arrangement, payment acknowledgement, dispute/escalation and follow-up.
+
+The platform must encode conduct restrictions and authority boundaries. It must not facilitate harassment, shaming, unauthorised contact, threats, or disclosure of debt information.
+
+## 4. Users
+
+- Field worker
+- Supervisor
+- Operations manager
+- Organisation administrator
+- Compliance/audit user
+- Platform administrator
+- Integration/service account
+
+The field worker is the primary design constraint: intermittent connectivity, limited attention, variable device quality, changing assignments and real-world exceptions are assumed.
+
+## 5. Goals
+
+1. Make authorised field work executable with minimal friction.
+2. Preserve a trustworthy history of material actions.
+3. Continue safe operation during connectivity and service degradation.
+4. Make exceptions visible and recoverable.
+5. Prevent unauthorised actions through policy, not training alone.
+6. Integrate with existing systems instead of replacing them unnecessarily.
+7. Provide management with operational truth rather than activity theatre.
+8. Support three domains using one core without forcing identical workflows.
+9. Make failure modes explicit, testable and observable.
+
+## 6. Non-goals
+
+- General-purpose ERP/CRM.
+- Clinical decision support.
+- Patient-record replacement.
+- Loan origination/servicing.
+- Payment processing or custody of funds.
+- Employee surveillance.
+- General-purpose workflow automation marketplace.
+- AI agents taking consequential field actions.
+- Hardware manufacturing.
+- National-scale government platform in the initial product.
+
+## 7. Product principles
+
+- Correctness before feature count.
+- Explicit state over implicit assumptions.
+- Least privilege.
+- Offline-first execution.
+- No silent data loss.
+- No silent policy bypass.
+- Evidence has provenance and uncertainty.
+- Human overrides are controlled and auditable.
+- Domain-specific rules stay domain-specific.
+- Integrations fail independently from core execution.
+- Data minimisation by design.
+- Operational metrics over vanity metrics.
+
+## 8. Core workflow
+
+A work item contains:
+- unique immutable ID
+- domain/type
+- business context reference
+- current state
+- priority
+- validity/due window
+- required actions
+- authority/policy reference
+- evidence requirements
+- outcome schema
+- assignment history
+- audit history
+
+Indicative state model:
+
+`draft → ready → assigned → accepted → in_progress → {completed, partially_completed, blocked, failed, cancelled} → review → closed`
+
+Not every domain must expose every state. State transitions must be explicitly defined and validated.
+
+## 9. Functional requirements
+
+### FR-1 Work creation
+Authorised users/integrations can create a work item with required context, policy and outcome schema.
+
+### FR-2 Assignment
+Work can be assigned, accepted, declined where allowed, reassigned, suspended or cancelled. Every material change is attributable.
+
+### FR-3 Authority
+The system evaluates whether an actor is allowed to perform an action under the applicable organisation, role, domain and work-item policy.
+
+### FR-4 Context
+Only necessary context is exposed to the worker. Sensitive fields require explicit policy and purpose.
+
+### FR-5 Execution
+Workers can execute structured steps, enter observations, record outcomes, attach evidence and report exceptions.
+
+### FR-6 Offline
+Previously synchronised authorised work remains executable offline. Local events are durable and queued for synchronisation.
+
+### FR-7 Evidence
+Evidence is stored with provenance, source type, timestamps and relationship to the action it supports.
+
+### FR-8 Outcome
+Completion must produce a typed outcome, not just a free-text note.
+
+### FR-9 Exception handling
+Workers can safely report blocked/unsafe/wrong/ambiguous work without falsifying completion.
+
+### FR-10 Review
+Supervisors can review configured exceptions and risk-based samples, approve/reject/correct/reassign, and document reasons.
+
+### FR-11 Audit
+Material actions are reconstructable chronologically.
+
+### FR-12 Notifications
+Notifications are advisory and non-authoritative. Failure of notification must not corrupt work state.
+
+### FR-13 Search/reporting
+Operational users can query work by state, assignee, domain, location/context, age, outcome and exception.
+
+### FR-14 Integration
+External systems can create/update/consume work through versioned APIs/events with idempotency.
+
+### FR-15 Data rights
+The platform supports workflows for access, correction, objection/deletion where legally applicable, retention and controlled export.
+
+## 10. Domain-specific requirements
+
+### Healthcare
+- No clinical decision-making.
+- Health data access is purpose/role constrained.
+- Sensitive fields are minimised.
+- Health-system integration must use approved interfaces/standards where applicable.
+- Patient-facing or clinical functions require separate regulatory review.
+- Audit trails must support health-information accountability.
+
+### Marketing
+- Visit objective is explicit.
+- Commercial actions are typed.
+- GPS/check-in is not treated as proof of performance.
+- Customer/order systems remain authoritative where they already exist.
+- Existing SFA capabilities should be integrated rather than duplicated.
+
+### Collections
+- Each collection action has an explicit authority/policy.
+- Contact methods and escalation rules are policy-controlled.
+- Restricted behaviour must be technically blocked where feasible.
+- Payment acknowledgement is distinct from payment settlement.
+- Disputes/complaints are first-class outcomes.
+- No access to a customer's contact list for collection purposes.
+- No public disclosure/shaming workflows.
+- Collection communications are attributable and reviewable.
+
+## 11. Non-functional requirements
+
+Initial targets:
+- No acknowledged material event silently disappears.
+- Material actions are idempotent.
+- Offline execution survives app restart and device reboot.
+- Core execution remains available when notifications/analytics/integrations fail.
+- All production changes are traceable.
+- Backups are restorable, not merely configured.
+- Security events are observable.
+- P95 API latency target: ≤500 ms for ordinary online transactional operations under defined pilot load.
+- Sync must be resumable and idempotent.
+- Initial availability objective: ≥99.9% monthly for core backend excluding scheduled maintenance, subject to infrastructure validation.
+
+## 12. Success criteria
+
+A pilot succeeds only if:
+- workers actually use it for real work;
+- supervisors trust the resulting record;
+- offline execution is reliable;
+- exceptions are handled without workarounds;
+- reconciliation is correct;
+- measured administrative effort decreases;
+- material audit reconstruction is possible;
+- no critical privacy/security/control failure occurs.
+
+A technically working application with poor worker adoption is a failed product.
+
+## 13. Release boundary
+
+Release 1 should contain:
+- identity/access
+- work creation
+- assignment
+- policy/authority
+- mobile execution
+- offline queue/sync
+- evidence
+- outcome
+- exceptions
+- supervisor review
+- audit
+- minimal reporting
+- API/integration foundation
+
+Explicitly defer:
+- advanced route optimisation
+- AI
+- predictive analytics
+- complex billing
+- marketplace functionality
+- large-scale workflow designer
+- broad integrations before one real integration is validated
+"""
+
+docs["R2_DOMAIN_REQUIREMENTS.md"] = r"""# R2 — Domain Requirements
+## Kenya: Healthcare, Marketing, Debt Collection
+**Version:** 0.1
+
+## 1. Shared domain model
+
+The platform has one common execution model but domain-specific policies, context and outcomes.
+
+| Primitive | Meaning |
+|---|---|
+| Work Item | Unit of operational work |
+| Assignment | Responsibility for executing work |
+| Authority | What the actor is permitted to do |
+| Context | Minimum information required to execute |
+| Action | A material step performed |
+| Evidence | Information supporting an action/outcome |
+| Outcome | Typed result |
+| Exception | Reason normal execution could not proceed |
+| Review | Controlled management intervention |
+| Next Action | New or continuing work |
+
+The card is a view over these objects.
+
+## 2. Healthcare profile
+
+### 2.1 Initial scope
+Use non-clinical or tightly bounded field workflows first:
+- equipment/service work
+- facility inspection
+- supply/commodity-related operational tasks where the authoritative system remains external
+- community/outreach operational tasks that do not create a duplicate clinical record
+- administrative follow-up
+
+### 2.2 Actors
+- field worker
+- supervisor
+- facility manager
+- biomedical/technical worker
+- authorised health-system integration
+- compliance/audit user
+
+### 2.3 Example workflow
+1. Facility creates/receives work.
+2. Supervisor assigns technician.
+3. Technician receives only required equipment/context.
+4. Technician works offline if required.
+5. Technician records inspection/service result.
+6. Evidence is attached.
+7. Exception is raised if equipment is unavailable/unsafe.
+8. Supervisor reviews.
+9. Authoritative maintenance/health system is updated through integration if applicable.
+
+### 2.4 Prohibited core behaviour
+- diagnosis
+- treatment recommendation
+- autonomous clinical triage
+- unnecessary patient-data replication
+- exposing one patient's data to another worker without authority
+- using health data for unrelated marketing
+- treating GPS/photo evidence as clinical truth
+
+### 2.5 Health-data requirements
+- explicit purpose per data category
+- minimum necessary fields
+- role/purpose access control
+- access logging
+- controlled export
+- retention schedule
+- data-subject rights workflow
+- breach response
+- processor/controller responsibilities defined contractually
+
+### 2.6 Acceptance tests
+- Worker cannot access a health record outside assigned purpose.
+- Offline data is encrypted locally.
+- Reassignment revokes future access while preserving already authorised audit evidence according to retention policy.
+- A health record is never duplicated merely because a work card requires a reference.
+- Every material health-data access is auditable.
+
+## 3. Marketing profile
+
+### 3.1 Initial scope
+Focus on execution/control gaps existing SFA products may not solve well:
+- complex campaign execution
+- exception-driven field operations
+- multi-party work
+- cross-system task orchestration
+- proof/reconciliation
+- operational controls
+
+Do not start by rebuilding standard order management.
+
+### 3.2 Example workflow
+1. Campaign/work item created.
+2. Outlet/customer context attached.
+3. Officer assigned.
+4. Officer receives objective and authorised actions.
+5. Officer works offline.
+6. Stock/order/observation results captured.
+7. Evidence linked to claims.
+8. Outcome recorded.
+9. Exceptions escalated.
+10. Existing CRM/ERP/SFA receives required authoritative update.
+
+### 3.3 Prohibited/undesired behaviour
+- continuous location surveillance by default
+- fabricated “proof of visit”
+- collecting unnecessary customer personal data
+- duplicate order ledger
+- silent overwriting of authoritative commercial records
+
+### 3.4 Acceptance tests
+- Worker can complete a visit without connectivity.
+- Duplicate sync cannot create duplicate order/work.
+- GPS uncertainty is visible.
+- Manager can distinguish assigned, attempted, completed and verified.
+- Customer/order system remains authoritative where integrated.
+
+## 4. Collections profile
+
+### 4.1 Initial scope
+- assigned case/visit
+- permitted contact/visit
+- outcome
+- repayment arrangement record
+- payment acknowledgement reference
+- dispute/complaint
+- escalation
+- follow-up
+
+Do not hold or settle money in the core platform.
+
+### 4.2 Example workflow
+1. Creditor/authorised system creates case.
+2. Assignment specifies objective and permitted actions.
+3. Collector receives minimum necessary account context.
+4. Collector attempts authorised contact/visit.
+5. System captures outcome.
+6. Payment reference/acknowledgement is recorded if applicable.
+7. Dispute or hardship is escalated.
+8. Follow-up is created.
+9. Supervisor reviews exceptions/high-risk cases.
+
+### 4.3 Hard controls
+The platform must not enable:
+- threats/violence
+- obscene/profane shaming messages
+- access to phone contacts for collection
+- unauthorised messages/calls to contacts
+- public posting of personal/sensitive information
+- harassment/oppression/abuse
+- unauthorised debt waiver or restructuring
+- unapproved payment settlement
+
+### 4.4 Payment boundary
+The platform records:
+- payment intent
+- payment reference
+- acknowledgement
+- reconciliation state
+
+The authoritative payment system records:
+- settlement
+- account balance
+- transaction finality
+
+### 4.5 Acceptance tests
+- Collector cannot see unauthorised contact lists.
+- Restricted communication templates cannot be bypassed by ordinary users.
+- Every collection action has actor/time/work-item provenance.
+- Complaint creates a trackable case.
+- Payment acknowledgement cannot be presented as confirmed settlement without authoritative confirmation.
+
+## 5. Cross-domain invariants
+
+1. A work item has exactly one authoritative lifecycle.
+2. An actor cannot execute an action they are not authorised to perform.
+3. Evidence cannot silently change after submission.
+4. Material corrections create an audit event.
+5. Offline events are not duplicated during retry.
+6. A failed external integration cannot silently mark core work complete.
+7. Domain policy can be stricter than the platform default.
+8. Sensitive context is minimised.
+9. Human overrides are attributable.
+10. Deletion/retention follows legal and evidentiary requirements.
+
+## 6. Domain selection for pilot
+
+Recommended technical validation order:
+1. Marketing: lowest regulatory burden and fastest operational learning.
+2. Collections: strongest stress test for authority, evidence and abuse controls.
+3. Healthcare: highest compliance/interoperability burden; validate after the core is proven.
+
+This order is for engineering validation, not a claim that marketing is the best commercial business.
+"""
+
+docs["R3_NFR.md"] = r"""# R3 — Non-Functional Requirements
+## Version 0.1
+
+## 1. Reliability
+
+### NFR-R1 — Durable material events
+Once the client confirms a material action as saved, it must survive app restart, process termination and ordinary device failure until synchronised or explicitly recovered.
+
+### NFR-R2 — No silent loss
+The system must expose unsynchronised, rejected, conflicted and failed events.
+
+### NFR-R3 — Idempotency
+Every synchronisable command has a client-generated idempotency key. Replaying the same command produces one logical effect.
+
+### NFR-R4 — Recovery
+The mobile client must recover its local operation log after:
+- crash
+- forced close
+- OS restart
+- temporary storage pressure where recoverable
+- network disappearance
+
+## 2. Offline
+
+The app must support a defined offline working window for the pilot, target 8–12 hours of ordinary work.
+
+Offline capabilities:
+- assigned work
+- authorised context
+- workflow execution
+- structured input
+- evidence capture
+- exception creation
+- local audit chain
+
+Not necessarily available offline:
+- live reassignment
+- live policy changes
+- external verification
+- server-only analytics
+
+The UI must clearly show:
+- last successful sync
+- pending events
+- rejected/conflicted events
+- policy/context staleness
+
+## 3. Synchronisation
+
+Use an append-oriented client event model rather than treating the client as a second mutable server database.
+
+Every event includes:
+- event ID
+- work-item ID
+- aggregate/entity ID
+- actor/device/session
+- local event timestamp
+- sequence/version where applicable
+- payload
+- schema version
+- policy version
+- previous local event hash if tamper-evident chaining is enabled
+
+Server processing:
+1. authenticate
+2. validate schema
+3. validate authority
+4. validate current state
+5. apply deterministic conflict policy
+6. persist accepted/rejected result
+7. return authoritative state
+
+Never use blind last-write-wins for material operational events.
+
+## 4. Performance
+
+Pilot targets:
+- P95 normal API response ≤500 ms.
+- P99 ≤2 s for ordinary transactional requests.
+- Mobile UI actions should acknowledge local saves in <200 ms where practical.
+- Initial sync should prioritise work state over large evidence files.
+- Large media uploads are resumable.
+
+Performance tests must use realistic low-end Android hardware and constrained networks.
+
+## 5. Availability
+
+Initial target:
+- Core backend monthly availability ≥99.9%.
+- Planned maintenance communicated.
+- Notifications, analytics and external connectors may degrade independently.
+- Mobile execution must not require continuous backend availability.
+
+## 6. Security
+
+Minimum:
+- TLS for all network traffic.
+- Encryption at rest.
+- Secure credential/token storage.
+- Short-lived access tokens.
+- Device/session revocation.
+- MFA for privileged users.
+- Strong password policy where passwords are used.
+- Rate limiting.
+- Abuse detection.
+- Centralised secrets management.
+- Dependency and container scanning.
+- Signed/reproducible builds where practical.
+- Security logging.
+- Administrative action logging.
+
+## 7. Mobile security
+
+- No plaintext sensitive data in logs.
+- No sensitive data in analytics SDKs by default.
+- Local database encrypted.
+- Screenshots/screen recording restrictions considered for sensitive profiles.
+- Clipboard use restricted where justified.
+- Remote session/device revocation.
+- Minimal cached context.
+- Secure deletion when retention expires, subject to forensic/legal requirements.
+- Rooted/compromised device handling is policy-driven, not assumed perfect.
+
+## 8. Privacy
+
+The platform shall support:
+- purpose limitation
+- data minimisation
+- access/objection/correction/deletion workflows where applicable
+- retention policies
+- processor/controller separation
+- transfer records
+- data inventory
+- DPIA support
+- data breach workflow
+- consent where consent is actually the lawful basis
+
+Consent must not be used as a blanket substitute for lawful-purpose analysis.
+
+## 9. Auditability
+
+Material events must be:
+- attributable
+- timestamped
+- ordered
+- immutable in the normal application path
+- queryable
+- exportable
+- retained according to policy
+
+Audit logging itself must not leak sensitive payloads unnecessarily.
+
+## 10. Observability
+
+Metrics:
+- assignment acceptance rate
+- completion rate
+- exception rate
+- sync success/failure
+- conflict rate
+- offline duration
+- event rejection rate
+- API latency
+- crash-free sessions
+- evidence upload failure
+- integration failure
+- policy denial
+- suspicious override rate
+
+Logs:
+- structured
+- correlation IDs
+- no sensitive data unless justified
+- centrally searchable
+
+Traces:
+- API → domain operation → persistence → integration.
+
+## 11. Maintainability
+
+- Modular monolith initially.
+- Strong module boundaries.
+- Versioned contracts.
+- Database migrations reversible where feasible.
+- Automated tests required before merge.
+- Static analysis.
+- Dependency pinning.
+- ADRs for architectural decisions.
+- No hidden business rules in UI.
+
+## 12. Accessibility and usability
+
+The field UI must:
+- work one-handed where practical
+- tolerate intermittent attention
+- use large touch targets
+- minimise typing
+- make offline state obvious
+- prevent destructive actions through accidental taps
+- support local time/date conventions
+- handle English and Swahili-ready content architecture
+
+## 13. Data lifecycle
+
+Every sensitive data class must have:
+- owner/controller
+- purpose
+- source
+- retention
+- access policy
+- deletion/archival policy
+- transfer destinations
+- lawful basis
+
+No “retain forever” default.
+
+## 14. Disaster recovery
+
+Initial objectives to validate:
+- RPO ≤15 minutes for server-side transactional data.
+- RTO ≤4 hours for core service.
+- Evidence storage must be independently recoverable.
+- Restore tests at least quarterly during production.
+- Backup integrity monitored continuously.
+
+These are engineering targets, not claims of achieved capability until tested.
+"""
+
+docs["R4_THREAT_ABUSE_MODEL.md"] = r"""# R4 — Threat & Abuse Model
+## Version 0.1
+
+## 1. Security objective
+
+Protect:
+- confidentiality of personal/sensitive data
+- integrity of work state/evidence
+- availability of field execution
+- authority boundaries
+- audit integrity
+- tenant isolation
+- regulatory compliance
+
+The most dangerous failure is not necessarily account compromise. It is a legitimate user performing an unauthorised or misleading action through a trusted system.
+
+## 2. Threat actors
+
+- compromised field worker account
+- malicious insider
+- compromised supervisor
+- stolen/unlocked device
+- compromised integration
+- external attacker
+- dishonest customer/third party
+- colluding worker + supervisor
+- opportunistic fraudster
+- accidental operator
+- infrastructure administrator
+- malicious/buggy client version
+
+## 3. High-risk abuse cases
+
+### A1 Fake completion
+Worker marks work complete without performing it.
+
+Controls:
+- typed outcome
+- evidence requirements where justified
+- risk-based verification
+- supervisor sampling
+- anomaly detection later
+- no fake certainty from GPS
+
+### A2 GPS spoofing
+Worker manipulates location.
+
+Controls:
+- treat location as one signal
+- detect impossible movement patterns
+- expose accuracy/source
+- never use GPS alone for high-consequence proof
+
+### A3 Evidence substitution
+Worker uploads evidence from another task/time.
+
+Controls:
+- bind evidence to work item/action
+- capture metadata
+- optional capture-time challenge
+- server-side content checks
+- preserve original provenance
+
+### A4 Offline policy bypass
+Worker continues an action after authority was revoked.
+
+Controls:
+- define offline policy validity window
+- cache policy version
+- classify actions by offline safety
+- block high-risk actions when policy is stale
+
+### A5 Duplicate transaction
+Retries create duplicate payment/order/action.
+
+Controls:
+- idempotency
+- unique business keys
+- reconciliation
+- explicit transaction state
+
+### A6 Supervisor collusion
+Supervisor falsely approves work.
+
+Controls:
+- separate duties for high-risk actions
+- approval audit
+- risk-based second review
+- immutable audit trail
+
+### A7 Data exfiltration
+Worker screenshots, copies or exports sensitive context.
+
+Controls:
+- minimum context
+- role/purpose access
+- export restrictions
+- device controls where feasible
+- watermarking only where justified
+- monitoring of abnormal access
+
+### A8 Tenant crossover
+User accesses another organisation's data.
+
+Controls:
+- tenant-scoped authorisation at service boundary
+- database constraints
+- automated isolation tests
+- separate storage paths/keys as appropriate
+
+### A9 Integration compromise
+External system sends forged work or outcome.
+
+Controls:
+- authenticated signed service accounts
+- least privilege
+- idempotency
+- schema validation
+- source attribution
+- integration-specific rate limits
+
+### A10 Harassing collections
+System is used to facilitate abusive collection.
+
+Controls:
+- prohibited action types
+- communication policy engine
+- restricted templates
+- no contact-list import for collection
+- escalation and complaint workflow
+- audit and monitoring
+
+## 4. STRIDE-style coverage
+
+| Area | Main threat | Primary control |
+|---|---|---|
+| Identity | spoofing | strong authentication |
+| Work item | tampering | server authority/state validation |
+| Evidence | repudiation | provenance/audit |
+| Data | disclosure | minimisation/encryption |
+| API | injection | validation/parameterisation |
+| Sync | replay | idempotency/event IDs |
+| Availability | flooding | rate limits/degradation |
+| Admin | privilege escalation | least privilege/MFA |
+
+## 5. Abuse-resistance principle
+
+Do not rely on:
+- training alone
+- contractual promises alone
+- audit after harm alone
+- GPS as proof
+- timestamps as proof
+- a single “admin” role
+- hidden UI restrictions
+
+High-risk restrictions should exist in backend policy enforcement.
+
+## 6. Security testing
+
+Before pilot:
+- SAST
+- dependency scan
+- secret scan
+- API authorisation tests
+- tenant isolation tests
+- mobile storage inspection
+- token/session tests
+- replay/idempotency tests
+- offline conflict tests
+- abuse-case tests
+- penetration test of production-like environment
+
+## 7. Privacy threat model
+
+For every data class ask:
+1. Why is it needed?
+2. Who needs it?
+3. For how long?
+4. Where is it stored?
+5. Is it transferred?
+6. Can the workflow operate without it?
+7. What happens if it is wrong?
+8. What happens if it leaks?
+9. What rights apply?
+10. What is the deletion/retention rule?
+
+## 8. High-risk rule
+
+Any function capable of:
+- changing a financial obligation,
+- changing a clinical/health record,
+- disclosing sensitive information,
+- deleting material evidence,
+- overriding policy,
+- changing authority,
+
+requires explicit design review and stronger controls.
+"""
+
+docs["R5_FAILURE_RESILIENCE.md"] = r"""# R5 — Failure, Drift & Resilience Model
+## Version 0.1
+
+## 1. Principle
+
+The system must assume failure, not merely detect it.
+
+A failure is acceptable only when:
+- its impact is bounded,
+- the system remains understandable,
+- recovery is possible,
+- material state is not silently corrupted,
+- the event is observable.
+
+## 2. Failure classes
+
+### Connectivity
+- no network
+- intermittent network
+- captive portal
+- high latency
+- server unavailable
+
+Expected behaviour: local execution within authorised offline envelope; durable queue; visible sync state.
+
+### Device
+- battery depletion
+- crash
+- storage exhaustion
+- OS kill
+- lost device
+- damaged camera
+- wrong device time
+
+Expected behaviour: durable local state; reauthentication/recovery; no reliance on volatile memory.
+
+### Human
+- wrong work item
+- wrong customer
+- accidental completion
+- duplicate tap
+- misunderstanding
+- fatigue
+- malicious action
+
+Expected behaviour: confirmation where consequential; undo/recovery where safe; explicit exceptions; audit.
+
+### Organisation
+- worker leaves
+- supervisor unavailable
+- reassignment
+- policy change
+- sudden workload spike
+- organisational restructure
+
+Expected behaviour: assignments can change without corrupting history; authority is evaluated explicitly.
+
+### Integration
+- timeout
+- duplicate callback
+- schema change
+- external outage
+- partial success
+
+Expected behaviour: core work state remains independent; integration has reconciliation state.
+
+### Data
+- malformed input
+- conflicting edits
+- stale context
+- corruption
+
+Expected behaviour: validation, conflict state, recovery process; never silent overwrite.
+
+## 3. Offline authority envelope
+
+Not all actions are equally safe offline.
+
+Classify actions:
+
+**Class A — safe offline**
+- record observation
+- draft outcome
+- capture evidence
+- create exception
+
+**Class B — conditionally offline**
+- complete work
+- customer acknowledgement
+- create follow-up
+
+**Class C — online required**
+- change financial obligation
+- final payment settlement
+- revoke/alter high-risk authority
+- access newly restricted sensitive data
+- high-consequence health action
+
+The platform must encode these classifications.
+
+## 4. Conflict handling
+
+Conflicts must be semantic.
+
+Examples:
+- two supervisors reassign same work
+- worker completes work after cancellation
+- two devices edit same observation
+- external system closes a case while field worker is offline
+
+Resolution options:
+- automatic merge for independent fields
+- server precedence for authoritative state
+- explicit conflict queue
+- supervisor review
+
+Never silently discard one material event.
+
+## 5. Drift detection
+
+Drift indicators:
+- increasing completion without evidence
+- abnormal offline durations
+- rising correction rate
+- unusual override frequency
+- repeated policy denials
+- sync backlog
+- increased duplicate events
+- unusual worker travel patterns
+- rising supervisor bulk approvals
+
+Drift is a signal for investigation, not automatic accusation.
+
+## 6. Near-miss model
+
+Record:
+- event
+- expected state
+- observed state
+- detection point
+- impact
+- containment
+- root/system cause
+- corrective action
+- whether similar events exist
+
+Near misses must feed engineering and operations reviews.
+
+## 7. Control loop
+
+Operational control:
+
+**Observe → Compare against policy/expected state → Decide → Act → Verify → Learn**
+
+The platform should support this loop but must not pretend that every decision can be automated.
+
+## 8. Economic stress
+
+Assume:
+- low-cost devices
+- staff turnover
+- expensive mobile data
+- power interruptions
+- high workload
+- limited training
+- pressure to meet targets
+
+Design responses:
+- low data transfer
+- local queueing
+- compressed evidence
+- minimal typing
+- progressive sync
+- clear recovery
+- training that focuses on exceptions, not manuals
+
+## 9. Disaster scenarios
+
+At minimum test:
+- 24-hour backend outage
+- 12-hour field offline period
+- mass reassignment
+- lost supervisor access
+- compromised worker account
+- database restore
+- object-storage outage
+- external API outage
+- mobile app upgrade during unsynchronised work
+- policy update while workers are offline
+
+## 10. Resilience acceptance criteria
+
+A pilot is not resilient until:
+- no material work disappears under tested failure scenarios;
+- recovery is understandable to a field worker;
+- supervisors can reconcile exceptions;
+- audit history remains coherent;
+- external outages do not corrupt internal state.
+"""
+
+docs["R6_DATA_DOMAIN_MODEL.md"] = r"""# R6 — Data & Domain Model
+## Version 0.1
+
+## 1. Domain aggregates
+
+### Organisation
+Tenant boundary.
+
+Fields:
+- organisation_id
+- legal/display identity
+- status
+- configuration
+- policy set
+- data-processing role/configuration
+
+### Actor
+Human/service identity.
+
+Fields:
+- actor_id
+- organisation_id
+- role assignments
+- status
+- authentication references
+- authority profile
+
+### WorkItem
+Primary operational aggregate.
+
+Fields:
+- work_item_id
+- organisation_id
+- domain
+- type
+- state
+- priority
+- context reference
+- policy reference/version
+- validity window
+- outcome schema
+- created_by
+- created_at
+
+### Assignment
+Responsibility record.
+
+Fields:
+- assignment_id
+- work_item_id
+- actor/team
+- start/end
+- authority snapshot/reference
+- assignment state
+- reason
+
+### Action
+Material execution event.
+
+Fields:
+- action_id
+- work_item_id
+- action_type
+- actor
+- local/server timestamps
+- policy version
+- payload reference
+- result
+
+### Evidence
+Evidence attached to an action/outcome.
+
+Fields:
+- evidence_id
+- work_item_id
+- action_id
+- type
+- object reference
+- captured_at
+- received_at
+- provenance metadata
+- integrity metadata
+- retention class
+
+### Outcome
+Typed result.
+
+Fields:
+- outcome_id
+- work_item_id
+- outcome_type
+- values
+- actor
+- timestamp
+- authority
+- verification state
+
+### Exception
+Deviation from expected execution.
+
+Fields:
+- exception_id
+- work_item_id
+- category
+- severity
+- description
+- actor
+- state
+- resolution
+
+### Review
+Supervisor/control action.
+
+Fields:
+- review_id
+- work_item_id
+- reviewer
+- decision
+- reason
+- timestamp
+
+### Policy
+Versioned authority/control definition.
+
+Fields:
+- policy_id
+- version
+- domain
+- actions
+- constraints
+- offline classification
+- effective_at
+- supersedes
+
+### AuditEvent
+Append-only material history.
+
+Fields:
+- audit_event_id
+- organisation_id
+- actor/device
+- event_type
+- aggregate
+- timestamp
+- source
+- payload/reference
+- correlation_id
+
+## 2. Relationships
+
+Organisation 1→N Actors  
+Organisation 1→N WorkItems  
+WorkItem 1→N Assignments  
+WorkItem 1→N Actions  
+Action 1→N Evidence  
+WorkItem 1→N Outcomes  
+WorkItem 1→N Exceptions  
+WorkItem 1→N Reviews  
+WorkItem N→1 Policy version  
+All material objects 1→N AuditEvents
+
+## 3. Invariants
+
+- IDs are globally unique.
+- Tenant ID is mandatory on tenant-owned objects.
+- Work item state transitions are validated server-side.
+- An action cannot occur without an authorised actor.
+- A closed work item cannot be mutated directly.
+- Corrections create new events; history is not rewritten.
+- Evidence cannot silently move between work items.
+- External references are not treated as authoritative without source designation.
+- Payment acknowledgement is not settlement.
+- Health context is not exposed merely because a user has a generic field role.
+
+## 4. Event model
+
+Prefer immutable domain events for material changes:
+
+`WorkAssigned`
+`WorkAccepted`
+`WorkStarted`
+`ActionRecorded`
+`EvidenceCaptured`
+`OutcomeRecorded`
+`ExceptionRaised`
+`WorkCompleted`
+`ReviewSubmitted`
+`WorkReopened`
+`WorkClosed`
+
+Commands request state change; events record what actually happened.
+
+## 5. Event ordering
+
+Each device maintains local sequence numbers. The server assigns authoritative receipt/order metadata.
+
+Do not assume device clocks are trustworthy.
+
+Use:
+- client event time for contextual timing
+- server receipt time for system chronology
+- monotonic/local sequence for ordering local events
+
+## 6. Data classification
+
+Suggested classes:
+- Public
+- Internal
+- Confidential
+- Sensitive personal
+- Highly sensitive/regulated
+
+Healthcare data and certain financial/personal information require stricter policies.
+
+## 7. Retention
+
+Retention is defined per data class and purpose, not globally.
+
+Evidence retention may differ from operational work retention.
+
+Audit records may need longer retention than ordinary UI data.
+
+Deletion must preserve legally required records and evidentiary integrity.
+
+## 8. API resource model
+
+Primary resources:
+- organisations
+- actors
+- work-items
+- assignments
+- actions
+- evidence
+- outcomes
+- exceptions
+- reviews
+- policies
+- audit-events
+- integrations
+
+Commands should be explicit:
+`POST /work-items/{id}/assign`
+`POST /work-items/{id}/actions`
+`POST /work-items/{id}/complete`
+`POST /work-items/{id}/exceptions`
+
+Avoid generic “update everything” endpoints for material state.
+
+## 9. Integration model
+
+External systems interact through:
+- authenticated REST APIs
+- signed webhooks where appropriate
+- asynchronous events
+- scheduled reconciliation
+
+Every integration has:
+- source of truth definition
+- contract version
+- retry policy
+- idempotency strategy
+- reconciliation process
+- failure state
+
+## 10. Tenant isolation
+
+Tenant identity must be enforced:
+- at authentication
+- service layer
+- database query layer
+- object storage
+- background jobs
+- analytics/reporting
+
+Automated cross-tenant tests are mandatory.
+"""
+
+docs["R7_TECHNICAL_ARCHITECTURE.md"] = r"""# R7 — Technical Architecture & Implementation Plan
+## Version 0.1
+
+## 1. Architecture decision
+
+Start as a **modular monolith**, not microservices.
+
+Reason:
+- one product core
+- small initial team
+- need for transactional consistency
+- lower operational burden
+- clearer debugging
+- domain boundaries can later become services if justified
+
+Structural decoupling is achieved through module boundaries and contracts, not network calls.
+
+## 2. Proposed topology
+
+### Mobile
+Native or cross-platform Android-first field application.
+
+Responsibilities:
+- local encrypted store
+- local event queue
+- workflow UI
+- evidence capture
+- policy cache
+- sync engine
+- device/session state
+
+### Backend
+Modular application:
+
+- Identity & Access
+- Organisation/Tenant
+- Work Management
+- Assignment
+- Authority/Policy
+- Execution
+- Evidence
+- Outcome
+- Exception/Review
+- Synchronisation
+- Audit
+- Notifications
+- Integration
+- Reporting
+
+### Storage
+- relational DB for transactional/domain state
+- object storage for evidence
+- queue for asynchronous jobs
+- cache only for non-authoritative acceleration
+
+## 3. Recommended implementation shape
+
+Use a strongly typed backend and relational database.
+
+Do not select technology by fashion. Required characteristics:
+- transactions
+- constraints
+- migrations
+- observability
+- mature security libraries
+- reliable PostgreSQL support or equivalent relational guarantees
+- testability
+
+Mobile should use an encrypted local database and durable queue.
+
+## 4. Synchronisation architecture
+
+Client:
+1. persist local action
+2. assign event ID/idempotency key
+3. mark pending
+4. attempt upload
+5. receive accepted/rejected/conflict result
+6. update local authoritative state
+7. retry only safe failures
+
+Server:
+1. authenticate
+2. authorise
+3. validate schema/version
+4. check idempotency
+5. validate aggregate state
+6. validate policy
+7. transact event + state transition
+8. emit integration/event work
+9. respond with authoritative result
+
+## 5. Evidence architecture
+
+Evidence upload should be separate from transactional state.
+
+Example:
+1. action recorded locally
+2. evidence stored locally
+3. metadata event queued
+4. server creates evidence placeholder
+5. object upload resumes independently
+6. server verifies object/integrity
+7. evidence becomes available to review
+
+Do not block core state forever because a 12 MB photo cannot upload.
+
+## 6. Policy engine
+
+Avoid a generic enterprise rules engine initially.
+
+Implement a versioned policy module with:
+- actor authority
+- domain
+- action
+- work state
+- context predicates
+- offline class
+- effective time
+- reason codes
+
+Policy evaluation must be deterministic and testable.
+
+## 7. Authentication
+
+Minimum:
+- password + MFA for privileged web users
+- secure mobile authentication
+- refresh-token rotation
+- device/session registry
+- immediate revocation
+- service-account credentials separate from human identities
+
+## 8. Authorisation
+
+Use RBAC as the baseline, supplemented by attributes/context.
+
+Example:
+- role = collector
+- organisation = tenant A
+- assigned work item = case 123
+- action = record_contact
+- policy = collection_policy_v4
+- allowed = yes
+
+Avoid purely static role permissions for high-risk operations.
+
+## 9. Audit
+
+Audit events should be written in the same transaction as material state changes where possible.
+
+For external events, preserve source and correlation ID.
+
+Do not allow ordinary users to delete audit events.
+
+## 10. Integration isolation
+
+Each connector has:
+- adapter
+- contract
+- credentials
+- queue
+- retry
+- dead-letter/reconciliation state
+- health metrics
+
+A broken connector must not bring down core field execution.
+
+## 11. Deployment
+
+Pilot environment:
+- managed relational DB
+- managed object storage
+- managed queue
+- containerised backend
+- infrastructure-as-code
+- separate dev/staging/prod
+- automated migrations
+- central logging/metrics
+- secrets manager
+- backups
+
+Do not introduce Kubernetes unless operational scale actually justifies it.
+
+## 12. CI/CD
+
+Pipeline:
+1. format/lint
+2. unit tests
+3. static analysis
+4. dependency/security checks
+5. integration tests
+6. migration test
+7. build
+8. container/image scan
+9. staging deployment
+10. smoke tests
+11. production approval
+
+Mobile:
+- signed release builds
+- staged rollout
+- crash monitoring
+- rollback-capable release process
+
+## 13. Implementation phases
+
+### Phase 0 — Domain proof
+Deliver:
+- domain model
+- state machines
+- policy model
+- threat model
+- representative workflows
+- test fixtures
+
+### Phase 1 — Core vertical slice
+Deliver:
+- identity
+- work creation
+- assignment
+- mobile execution
+- offline queue
+- sync
+- evidence
+- outcome
+- review
+- audit
+
+### Phase 2 — Failure hardening
+Deliberately inject:
+- offline
+- crashes
+- duplicates
+- stale policies
+- conflicts
+- API failures
+- object-store failures
+
+### Phase 3 — First real domain
+Prefer the least-regulated operational environment for engineering learning unless a committed design partner requires another domain.
+
+### Phase 4 — Collections profile
+Add authority/conduct controls and financial integration boundaries.
+
+### Phase 5 — Healthcare profile
+Only after legal/interoperability review and a real health partner.
+
+## 14. Architectural anti-patterns
+
+Forbidden unless explicitly justified:
+- microservices by default
+- generic workflow DSL before use cases prove need
+- event sourcing everything
+- blockchain
+- AI-first design
+- synchronous chains across external systems
+- “admin can do anything”
+- mutable audit logs
+- client-authoritative state
+- last-write-wins for material operations
+- storing sensitive data in analytics platforms unnecessarily
+- building duplicate master records without ownership definition
+"""
+
+docs["R8_TEST_STRATEGY.md"] = r"""# R8 — Test Strategy
+## Version 0.1
+
+## 1. Test philosophy
+
+Testing must demonstrate:
+1. intended behaviour;
+2. behaviour under failure;
+3. resistance to misuse;
+4. preservation of invariants;
+5. recoverability.
+
+“Happy-path tests pass” is insufficient.
+
+## 2. Test layers
+
+### Unit
+- policy decisions
+- state transitions
+- validation
+- idempotency
+- conflict resolution
+- retention rules
+- domain outcome logic
+
+### Integration
+- DB transactions
+- object storage
+- queue
+- authentication
+- external connectors
+- mobile sync protocol
+
+### End-to-end
+- assignment to closure
+- offline execution
+- supervisor review
+- integration reconciliation
+
+### Security
+- authentication
+- authorisation
+- tenant isolation
+- injection
+- session management
+- mobile storage
+- API abuse
+- privilege escalation
+
+### Performance
+- concurrent field workers
+- sync bursts
+- evidence uploads
+- reporting queries
+- database contention
+
+### Resilience
+- service outages
+- network partitions
+- duplicate events
+- crash/restart
+- restore
+- queue failure
+- object storage failure
+
+### Human factors
+- usability with poor connectivity
+- low-end devices
+- one-handed operation
+- incorrect worker action
+- ambiguity
+- recovery after mistakes
+
+## 3. Property-based/invariant tests
+
+Examples:
+
+**I1:** Applying the same idempotent command N times produces one material effect.
+
+**I2:** No actor can create a state transition prohibited by current policy.
+
+**I3:** A closed work item cannot be silently mutated.
+
+**I4:** Evidence cannot be associated with a different work item after submission.
+
+**I5:** Tenant A cannot retrieve tenant B data through any API/resource path.
+
+**I6:** Server restart cannot lose acknowledged events.
+
+**I7:** Sync order does not create duplicate material actions.
+
+**I8:** Every material state change has an audit event.
+
+## 4. Failure injection
+
+Automate:
+- network disconnect
+- high latency
+- request timeout after server commit
+- duplicate request
+- server restart
+- client crash
+- stale policy
+- revoked assignment
+- clock skew
+- malformed payload
+- object upload interruption
+- queue delay
+- duplicate webhook
+
+## 5. Security acceptance
+
+No pilot release if:
+- cross-tenant access is possible
+- privilege escalation exists
+- sensitive data appears in logs
+- local sensitive data is stored unencrypted
+- revoked sessions remain usable beyond defined tolerance
+- high-risk prohibited collection action is executable
+- audit can be altered through normal user functions
+
+## 6. Offline acceptance
+
+Scenario:
+1. login online
+2. download work
+3. disconnect network
+4. perform 20+ actions
+5. capture evidence
+6. force-kill app
+7. reboot device
+8. reconnect
+9. sync
+10. verify server state
+
+Expected:
+- all intended actions preserved exactly once
+- ordering understandable
+- rejected actions visible
+- no evidence orphaned
+
+## 7. Conflict tests
+
+Cases:
+- worker completes after supervisor cancels
+- worker works on stale assignment
+- two supervisors reassign
+- external system closes work while worker is offline
+- same evidence uploaded twice
+- same payment reference submitted twice
+
+Each must have deterministic expected behaviour.
+
+## 8. Domain acceptance
+
+### Healthcare
+- no unauthorised health-data access
+- purpose-limited context
+- complete audit
+- integration does not duplicate authoritative records
+
+### Marketing
+- order duplication prevented
+- manager can distinguish execution from verification
+- no default continuous tracking
+
+### Collections
+- prohibited contact access impossible
+- complaint workflow works
+- restricted actions blocked
+- payment settlement not falsely inferred
+
+## 9. Load targets
+
+Pilot load model should be measured rather than guessed.
+
+Initial synthetic test:
+- 1,000 organisations
+- 10,000 workers
+- 100,000 work items/day
+- burst sync after connectivity restoration
+- evidence upload concurrency
+
+The numbers are test-load assumptions, not launch capacity promises.
+
+## 10. Release gates
+
+### Gate A
+All unit/integration tests pass.
+
+### Gate B
+Security and tenant-isolation tests pass.
+
+### Gate C
+Offline/failure suite passes.
+
+### Gate D
+Production-like restore succeeds.
+
+### Gate E
+Real workers complete representative workflows.
+
+### Gate F
+No unresolved critical/high defects.
+
+### Gate G
+Operational owner signs off on exception/recovery procedures.
+
+## 11. Production verification
+
+After release monitor:
+- error rate
+- sync failure
+- conflict rate
+- crash rate
+- latency
+- policy denial
+- unusual overrides
+- data-quality corrections
+
+A release that technically passes but causes field workarounds is considered unsuccessful.
+"""
+
+docs["R9_PILOT_PLAN.md"] = r"""# R9 — Kenya Pilot Plan
+## Version 0.1
+
+## 1. Objective
+
+Prove that the core execution model works under real Kenyan field conditions without building an oversized product.
+
+The pilot must answer:
+- Can workers execute reliably offline?
+- Does the model fit all three domains?
+- Do supervisors trust the record?
+- Can failures be recovered without data corruption?
+- Do authority controls work?
+- Does the system reduce operational friction?
+- Is there a commercially defensible problem beyond generic digitisation?
+
+## 2. Pilot strategy
+
+Do not launch three full verticals.
+
+Run one common platform against three tightly bounded workflows.
+
+### Candidate workflow A — Marketing
+One repeatable field visit with measurable completion/outcome.
+
+### Candidate workflow B — Collections
+One authorised field collection/visit workflow with no payment custody.
+
+### Candidate workflow C — Healthcare
+One non-clinical field workflow, preferably equipment/facility operations before patient-record functionality.
+
+## 3. Pilot participants
+
+Minimum:
+- 5–15 field workers per domain
+- 2–4 supervisors
+- 1 operational owner
+- 1 technical owner
+- privacy/compliance reviewer
+
+Actual sample should be chosen with the participating organisation.
+
+## 4. Pilot duration
+
+Suggested:
+- 2 weeks controlled shadow operation
+- 4 weeks live operation
+- 2 weeks analysis/hardening
+
+Do not extend simply because more features can be added.
+
+## 5. Shadow period
+
+For selected work, compare:
+- existing process
+- platform process
+
+Measure:
+- time
+- errors
+- missing information
+- supervisor effort
+- rework
+- exception handling
+
+The old process remains available during shadow mode.
+
+## 6. Field conditions to deliberately test
+
+- strong connectivity
+- weak connectivity
+- complete outage
+- low battery
+- app restart
+- device restart
+- reassignment while offline
+- cancelled work while offline
+- duplicate submission
+- wrong assignment
+- unavailable customer/site
+- supervisor unavailable
+- external system unavailable
+
+## 7. Metrics
+
+### Reliability
+- successful sync %
+- duplicate event rate
+- lost-event rate
+- crash-free sessions
+- conflict rate
+
+### Operational
+- completion rate
+- exception rate
+- rework rate
+- supervisor review time
+- average execution time
+- administrative time saved
+
+### Trust
+- worker-reported confidence
+- supervisor-reported confidence
+- number of manual workarounds
+- unexplained discrepancies
+
+### Control
+- unauthorised action attempts
+- override rate
+- audit completeness
+- evidence mismatch rate
+
+### Commercial
+- willingness to continue
+- measurable cost/time benefit
+- integration burden
+- deployment effort
+- customer-specific configuration required
+
+## 8. Stop conditions
+
+Immediately pause affected workflow for:
+- material privacy breach
+- cross-tenant exposure
+- unauthorised high-risk action
+- data corruption
+- inability to reconstruct material events
+- unsafe healthcare behaviour
+- prohibited collection behaviour
+- financial transaction ambiguity
+
+Do not “fix forward” a serious integrity failure while continuing live operation.
+
+## 9. Go/no-go thresholds
+
+Suggested initial gates:
+- zero confirmed material data-loss incidents
+- zero critical authorisation bypasses
+- ≥99.5% successful sync of attempted material events after retry
+- 100% reconstructability of sampled material workflows
+- <1% duplicate material events after reconciliation
+- no unresolved high-severity privacy/security issue
+- majority of field workers prefer the workflow over the old process
+- measurable reduction in supervisor/admin effort
+
+Thresholds should be recalibrated after baseline measurement.
+
+## 10. Pilot governance
+
+Weekly:
+- incident review
+- near-miss review
+- data-quality review
+- adoption/workaround review
+- product changes
+
+Every change must identify:
+- requirement
+- risk
+- affected domains
+- rollback
+- test coverage
+
+## 11. Evidence pack
+
+At pilot end retain:
+- architecture version
+- configuration/policy versions
+- test results
+- incident/near-miss log
+- sample audit reconstructions
+- data inventory
+- DPIA/privacy assessment where required
+- security assessment
+- operational metrics
+- worker/supervisor feedback
+- integration reconciliation results
+- go/no-go decision
+
+## 12. Commercial validation
+
+A successful technical pilot does not prove a business.
+
+Before commercialisation establish:
+- buyer
+- economic owner
+- budget source
+- deployment cost
+- integration cost
+- recurring value
+- switching barrier
+- existing competitor/process
+- reason customer would not simply use existing SFA/CRM/CMMS/collection software
+
+## 13. Recommended pilot sequence
+
+**Stage 1:** Core + marketing workflow for rapid learning.
+
+**Stage 2:** Same core + collections to stress authority, evidence and abuse controls.
+
+**Stage 3:** Healthcare non-clinical workflow after health-data/interoperability review.
+
+If a committed design partner makes healthcare the first opportunity, reverse the sequence only after the compliance boundary is approved.
+
+## 14. Exit criteria
+
+Proceed to broader productisation only if:
+- common core survives all three workflows;
+- domain differences remain cleanly isolated;
+- offline/sync model survives hostile testing;
+- operational value is measurable;
+- security/privacy controls survive independent review;
+- no major requirement depends on “users will just behave correctly.”
+
+Otherwise, revise the model rather than adding features.
+"""
+
+# Add a short source register to every document where appropriate
+sources = r"""
+## Authoritative Kenya reference baseline
+
+- Office of the Data Protection Commissioner (ODPC): Data Protection Laws Kenya; Data Protection Act 2019 and 2021 regulations.
+- ODPC: Guidance Notes, including DPIA, health data, digital credit providers, registration and cross-border transfers.
+- Kenya Law: Digital Health Act, 2023.
+- Kenya Law: Digital Health (Health Information Management Procedures) Regulations, 2025.
+- Central Bank of Kenya (CBK): Digital Credit Providers Regulations, 2022 and current banking supervision/licensing materials.
+- Kenya Law: Computer Misuse and Cybercrimes Act, including the latest available amended version.
+- These documents are requirements guidance, not legal advice. Regulatory classification must be confirmed for the actual deploying organisation and workflow before production.
+"""
+for k in list(docs):
+    docs[k] += "\n" + sources
+
+# README
+docs["README.md"] = r"""# Digital Field-Work Execution & Control Platform — Kenya
+## R1–R9 Requirements Package
+
+This package is the v0.1 requirements and implementation baseline for a production-oriented field-work execution platform covering three validation domains:
+
+1. Healthcare field work
+2. Marketing/sales field work
+3. Debt collection/recovery
+
+The design deliberately uses one core execution model with domain-specific profiles.
+
+### Document order
+
+- R1 — Product Requirements Document
+- R2 — Domain Requirements
+- R3 — Non-Functional Requirements
+- R4 — Threat & Abuse Model
+- R5 — Failure, Drift & Resilience Model
+- R6 — Data & Domain Model
+- R7 — Technical Architecture & Implementation Plan
+- R8 — Test Strategy
+- R9 — Kenya Pilot Plan
+
+### Key architectural thesis
+
+**Work Item → Assignment → Authority/Policy → Context → Execution → Evidence → Outcome → Review → Next Action**
+
+The worker-facing “work card” is a projection of this model, not the underlying domain object.
+
+### Deliberate scope controls
+
+The first release does not attempt to become an EMR/EHR, CRM, loan-management system, payment processor, ERP, HR platform, route optimiser, surveillance system or AI decision-maker.
+
+### Regulatory note
+
+Kenya-specific requirements are grounded in official ODPC, Kenya Law, Ministry of Health and CBK materials available at the time of drafting. Legal/compliance review remains mandatory before handling live regulated data or deploying into a regulated institution.
+"""
+
+# Write files
+for name, content in docs.items():
+    (base / name).write_text(content.strip() + "\n", encoding="utf-8")
+
+# ZIP
+zip_path = Path("/mnt/data/digital_work_execution_ke_r1_r9.zip")
+with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
+    for p in sorted(base.glob("*.md")):
+        z.write(p, arcname=p.name)
+
+print(f"Created {len(docs)} Markdown documents plus ZIP.")
+print(zip_path)

@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:16-alpine
+    pull_policy: never
+    environment:
+      POSTGRES_USER: elio
+      POSTGRES_PASSWORD: elio
+      POSTGRES_DB: elio
+    ports:
+      - "5432:5432"
+    volumes:
+      - elio_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U elio -d elio"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  elio_pgdata:

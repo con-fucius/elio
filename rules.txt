@@ -1,0 +1,19 @@
+Collaboration Flow
+1. Do not run any git commands unless explicitly asked. When exploring the codebase, rely on actual code over local documentation unless asked to read docs. The trusted intent set is `docs/` in this repo: `canonical_baseline.md`, ADRs, glossary, state machines, pending-sync design, stress-test artifacts. All other local docs are untrusted until verified against code.
+2. Think critically, review thoroughly, challenge and refine — do not blindly trust assessments. Criticize and challenge where wrong. Push back.
+3. Build to clear tech debt. Mocks, stubs, placeholders, and shortcuts are not acceptable. Wire, integrate and configure with actuals. Do not leave tech debt behind. If a shortcut was taken, go back and do it right. This is a hard acceptance criterion.
+4. Do not add new features or overhauls unless new items are required to bring the system to life. Build on top of what exists.
+5. Instead of deleting, mark components, modules and files that are unneeded as deprecated. Comment clearly so the next developer cannot miss it.
+6. Some issues may not be in the specific lines or places highlighted, because remediation may already have shifted them. Re-verify against current state before concluding.
+7. Be thorough and rigorous — critically review, challenge and criticize proposed fixes; refine and improve them. Do not assume; ask where unsure.
+8. Explore, refer and be guided by latest official documentation and authoritative resources on the web. Verify — do not rely on stale knowledge.
+9. Before modifying any code, thoroughly explore what exists to avoid duplicating work or creating more tech debt.
+
+Instructions
+1. No cosmetics.
+2. No shortcuts or faking. Do not write shallow stubs. Never silently swallow exceptions. Never return empty lists just to prevent UI crashes. Implement explicit, honest degraded states.
+3. Follow the plan, but not blindly. Methodical, sequential execution is mandatory. Challenge, criticize and refine.
+4. Preserve architecture. Do NOT delete. Mark deprecated instead.
+5. Verify everything. Before claiming a task is done, verify that it is.
+6. Be constructive, not destructive. If an endpoint is missing a backing method, build the method in the data layer. Do not delete the FE component or the route.
+7. Implement with absolute rigor, exhaustive validation, and zero assumptions. Dig deep and do the real engineering work.
